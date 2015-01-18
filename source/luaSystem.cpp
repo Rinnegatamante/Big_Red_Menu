@@ -377,6 +377,7 @@ return (Result)cmdbuf[1];
 }
 //Finish AM support
 
+int MAX_RAM_ALLOCATION = 62914560;
 
 static int lua_installCia(lua_State *L){
 	int argc = lua_gettop(L);
@@ -392,9 +393,29 @@ static int lua_installCia(lua_State *L){
 	amInit();
 	AM_StartCiaInstall(mediatype_SDMC, &ciaHandle);
 	FSFILE_GetSize(fileHandle, &size);
-	char* cia_buffer = (char*)(malloc((size) * sizeof (char)));
-	FSFILE_Read(fileHandle, &bytes, 0x0, cia_buffer, size);
-	FSFILE_Write(ciaHandle, &bytes, 0, cia_buffer, size, 0x10001);
+	if (size < MAX_RAM_ALLOCATION){
+		char* cia_buffer = (char*)(malloc((size) * sizeof (char)));
+		FSFILE_Read(fileHandle, &bytes, 0x0, cia_buffer, size);
+		FSFILE_Write(ciaHandle, &bytes, 0, cia_buffer, size, 0x10001);
+		free(cia_buffer);
+	}else{
+		u64 i = 0;
+		char* cia_buffer;
+		while (i < size){
+			u64 bytesToRead;
+			if	(i+MAX_RAM_ALLOCATION > size){
+				cia_buffer = (char*)(malloc((size-i) * sizeof(char)));
+				bytesToRead = size - i;
+			}else{
+				cia_buffer = (char*)(malloc((MAX_RAM_ALLOCATION) * sizeof(char)));
+				bytesToRead = MAX_RAM_ALLOCATION;
+			}
+			FSFILE_Read(fileHandle, &bytes, i, cia_buffer, bytesToRead);
+			FSFILE_Write(ciaHandle, &bytes, i, cia_buffer, bytesToRead, 0x10001);
+			i = i + bytesToRead;
+			free(cia_buffer);
+		}
+	}
 	AM_FinishCiaInstall(mediatype_SDMC, &ciaHandle);
 	FSFILE_Close(fileHandle);
 	svcCloseHandle(fileHandle);
@@ -433,7 +454,7 @@ static int lua_listCia(lua_State *L){
 		lua_pushstring(L, "platform");
 		lua_pushnumber(L, (TitleIDs[i-1].platform));
 		lua_settable(L, -3);
-		lua_pushstring(L, "delete_id");
+		lua_pushstring(L, "access_id");
 		lua_pushnumber(L, i);
 		lua_settable(L, -3);
 		lua_pushstring(L, "category");

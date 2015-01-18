@@ -188,7 +188,7 @@ while true do
 					if (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
 						sm_index = 2
 					elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
-						System.uninstallCIA(cia_table[p].delete_id)
+						System.uninstallCIA(cia_table[p].access_id)
 						break
 					end
 				else
