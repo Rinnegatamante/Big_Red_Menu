@@ -6,11 +6,6 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-ifeq ($(strip $(CTRULIB)),)
-# THIS IS TEMPORARY - in the future it should be at $(DEVKITPRO)/libctru
-$(error "Please set CTRULIB in your environment. export CTRULIB=<path to>libctru")
-endif
-
 TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
 
@@ -133,8 +128,15 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).3ds $(TARGET).cia $(TARGET)-strip.elf
 
+#---------------------------------------------------------------------------------
+$(TARGET)-strip.elf: $(BUILD)
+	$(STRIP) $(TARGET).elf -o $(TARGET)-strip.elf
+cci: $(TARGET)-strip.elf
+	$(DEVKITARM)/bin/makerom -f cci -rsf cia_workaround.rsf -target d -exefslogo -elf $(TARGET)-strip.elf -icon icon.bin -banner banner.bin -o $(TARGET).3ds
+cia: $(TARGET)-strip.elf
+	$(DEVKITARM)/bin/makerom -f cia -o $(TARGET).cia -elf $(TARGET)-strip.elf -rsf cia_workaround.rsf -icon icon.bin -banner banner.bin -exefslogo -target t
 
 #---------------------------------------------------------------------------------
 else
