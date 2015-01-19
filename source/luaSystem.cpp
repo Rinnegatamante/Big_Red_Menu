@@ -284,7 +284,7 @@ static int lua_listdir(lua_State *L){
 	return 1;
 }
 
-//AM service support, stolen by libctru
+//AM service support, partially stolen by libctru
 static Handle amHandle = 0;
 
 Result amInit()
@@ -353,6 +353,19 @@ if((ret = svcSendSyncRequest(amHandle))!=0) return ret;
 return (Result)cmdbuf[1];
 }
 
+Result AM_GetTitleProductCode(u8 mediatype, u64 titleid, char* product_code)
+{
+Result ret = 0;
+u32 *cmdbuf = getThreadCommandBuffer();
+cmdbuf[0] = 0x000500C0;
+cmdbuf[1] = mediatype;
+cmdbuf[2] = titleid & 0xffffffff;
+cmdbuf[3] = (titleid >> 32) & 0xffffffff;
+if((ret = svcSendSyncRequest(amHandle))!=0) return ret;
+sprintf(product_code,"%s",(char*)(&cmdbuf[2]));
+return (Result)cmdbuf[1];
+}
+
 Result AM_DeleteTitle(u8 mediatype, u64 titleid)
 {
 Result ret = 0;
@@ -364,6 +377,7 @@ cmdbuf[3] = (titleid >> 32) & 0xffffffff;
 if((ret = svcSendSyncRequest(amHandle))!=0) return ret;
 return (Result)cmdbuf[1];
 }
+
 Result AM_DeleteAppTitle(u8 mediatype, u64 titleid)
 {
 Result ret = 0;
@@ -451,8 +465,17 @@ static int lua_listCia(lua_State *L){
 		lua_pushstring(L, "unique_id");
 		lua_pushnumber(L, (TitleIDs[i-1].uniqueid));
 		lua_settable(L, -3);
+		lua_pushstring(L, "mediatype");
+		lua_pushnumber(L, 1);
+		lua_settable(L, -3);
 		lua_pushstring(L, "platform");
 		lua_pushnumber(L, (TitleIDs[i-1].platform));
+		lua_settable(L, -3);
+		u64 id = TitleIDs[i-1].uniqueid | ((u64)TitleIDs[i-1].category << 32) | ((u64)TitleIDs[i-1].platform << 48);
+		char product_id[16];
+		AM_GetTitleProductCode(mediatype_SDMC, id, product_id);
+		lua_pushstring(L, "product_id");
+		lua_pushstring(L, product_id);
 		lua_settable(L, -3);
 		lua_pushstring(L, "access_id");
 		lua_pushnumber(L, i);
@@ -468,22 +491,101 @@ static int lua_listCia(lua_State *L){
 		i++;
 	}
 	free(TitleIDs);
+	AM_GetTitleCount(mediatype_GAMECARD, &cia_nums);
+	TitleIDs = (TitleId*)malloc(cia_nums * sizeof(TitleId));
+	AM_GetTitleList(mediatype_GAMECARD,cia_nums,TitleIDs);
+	u32 z = 1;
+	while (z <= cia_nums){
+		lua_pushnumber(L, i);
+		lua_newtable(L);
+		lua_pushstring(L, "unique_id");
+		lua_pushnumber(L, (TitleIDs[i-1].uniqueid));
+		lua_settable(L, -3);
+		lua_pushstring(L, "mediatype");
+		lua_pushnumber(L, 0);
+		lua_settable(L, -3);
+		lua_pushstring(L, "platform");
+		lua_pushnumber(L, (TitleIDs[i-1].platform));
+		lua_settable(L, -3);
+		u64 id = TitleIDs[i-1].uniqueid | ((u64)TitleIDs[i-1].category << 32) | ((u64)TitleIDs[i-1].platform << 48);
+		char product_id[16];
+		AM_GetTitleProductCode(mediatype_GAMECARD, id, product_id);
+		lua_pushstring(L, "product_id");
+		lua_pushstring(L, product_id);
+		lua_settable(L, -3);
+		lua_pushstring(L, "access_id");
+		lua_pushnumber(L, z);
+		lua_settable(L, -3);
+		lua_pushstring(L, "category");
+		if(((TitleIDs[i-1].category) & 0x8000) == 0x8000) lua_pushnumber(L, 4);
+		else if (((TitleIDs[i-1].category) & 0x10) == 0x10) lua_pushnumber(L, 1);
+		else if(((TitleIDs[i-1].category) & 0x6) == 0x6) lua_pushnumber(L, 3);
+		else if(((TitleIDs[i-1].category) & 0x2) == 0x2) lua_pushnumber(L, 2);
+		else lua_pushnumber(L, 0);
+		lua_settable(L, -3);
+		lua_settable(L, -3);
+		i++;
+		z++;
+	}
+	free(TitleIDs);
+	AM_GetTitleCount(mediatype_NAND, &cia_nums);
+	TitleIDs = (TitleId*)malloc(cia_nums * sizeof(TitleId));
+	AM_GetTitleList(mediatype_NAND,cia_nums,TitleIDs);
+	z = 1;
+	while (z <= cia_nums){
+		lua_pushnumber(L, i);
+		lua_newtable(L);
+		lua_pushstring(L, "unique_id");
+		lua_pushnumber(L, (TitleIDs[i-1].uniqueid));
+		lua_settable(L, -3);
+		lua_pushstring(L, "mediatype");
+		lua_pushnumber(L, 2);
+		lua_settable(L, -3);
+		lua_pushstring(L, "platform");
+		lua_pushnumber(L, (TitleIDs[i-1].platform));
+		lua_settable(L, -3);
+		u64 id = TitleIDs[i-1].uniqueid | ((u64)TitleIDs[i-1].category << 32) | ((u64)TitleIDs[i-1].platform << 48);
+		char product_id[16];
+		AM_GetTitleProductCode(mediatype_NAND, id, product_id);
+		lua_pushstring(L, "product_id");
+		lua_pushstring(L, product_id);
+		lua_settable(L, -3);
+		lua_pushstring(L, "access_id");
+		lua_pushnumber(L, z);
+		lua_settable(L, -3);
+		lua_pushstring(L, "category");
+		if(((TitleIDs[i-1].category) & 0x8000) == 0x8000) lua_pushnumber(L, 4);
+		else if (((TitleIDs[i-1].category) & 0x10) == 0x10) lua_pushnumber(L, 1);
+		else if(((TitleIDs[i-1].category) & 0x6) == 0x6) lua_pushnumber(L, 3);
+		else if(((TitleIDs[i-1].category) & 0x2) == 0x2) lua_pushnumber(L, 2);
+		else lua_pushnumber(L, 0);
+		lua_settable(L, -3);
+		lua_settable(L, -3);
+		i++;
+		z++;
+	}
+	free(TitleIDs);
 	amExit();
 	return 1;
 }
 
 static int lua_uninstallCia(lua_State *L){
 	int argc = lua_gettop(L);
-	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	if (argc != 2) return luaL_error(L, "wrong number of arguments");
 	u32 delete_id = luaL_checknumber(L,1);
+	u32 mediatype = luaL_checknumber(L,2);
+	mediatypes_enum media;
+	if (mediatype == 0) media = mediatype_GAMECARD;
+	else if (mediatype == 1) media = mediatype_SDMC;
+	else media = mediatype_NAND;
 	amInit();
 	u32 cia_nums;
-	AM_GetTitleCount(mediatype_SDMC, &cia_nums);
+	AM_GetTitleCount(media, &cia_nums);
 	TitleId* TitleIDs = (TitleId*)malloc(cia_nums * sizeof(TitleId));
-	AM_GetTitleList(mediatype_SDMC,cia_nums,TitleIDs);
+	AM_GetTitleList(media,cia_nums,TitleIDs);
 	u64 id = TitleIDs[delete_id-1].uniqueid | ((u64)TitleIDs[delete_id-1].category << 32) | ((u64)TitleIDs[delete_id-1].platform << 48);
-	AM_DeleteAppTitle(mediatype_SDMC, id);
-	AM_DeleteTitle(mediatype_SDMC, id);
+	AM_DeleteAppTitle(media, id);
+	AM_DeleteTitle(media, id);
 	amExit();
 	free(TitleIDs);
 	return 0;

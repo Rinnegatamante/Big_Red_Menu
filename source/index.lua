@@ -115,17 +115,25 @@ while true do
 				else
 					color = menu_color
 				end
-				CropPrint(0,base_y,"0x"..string.format('%02X',file.unique_id),color,BOTTOM_SCREEN)
+				CropPrint(0,base_y,file.product_id,color,BOTTOM_SCREEN)
 				base_y = base_y + 15
 			end
 		end
 		Screen.debugPrint(0,225,"Imported CIA listing",menu_color,TOP_SCREEN)
 		Screen.debugPrint(0,0,"Unique ID: 0x"..string.sub(string.format('%02X',cia_table[p].unique_id),1,-3),menu_color,TOP_SCREEN)
-		Screen.debugPrint(0,15,"Category: "..GetCategory(cia_table[p].category),menu_color,TOP_SCREEN)
+		Screen.debugPrint(0,15,"Product ID: "..cia_table[p].product_id,menu_color,TOP_SCREEN)
+		Screen.debugPrint(0,30,"Category: "..GetCategory(cia_table[p].category),menu_color,TOP_SCREEN)
 		if (cia_table[p].platform == 3) then
-			Screen.debugPrint(0,30,"Platform: DSi",menu_color,TOP_SCREEN)
+			Screen.debugPrint(0,45,"Platform: DSi",menu_color,TOP_SCREEN)
 		else
-			Screen.debugPrint(0,30,"Platform: 3DS",menu_color,TOP_SCREEN)
+			Screen.debugPrint(0,45,"Platform: 3DS",menu_color,TOP_SCREEN)
+		end
+		if cia_table[p].mediatype == 0 then
+			Screen.debugPrint(0,60,"Location: Gamecard",Color.new(0,0,255),TOP_SCREEN)
+		elseif cia_table[p].mediatype == 1 then
+			Screen.debugPrint(0,60,"Location: SDMC",Color.new(0,255,0),TOP_SCREEN)
+		else
+			Screen.debugPrint(0,60,"Location: NAND",Color.new(255,0,0),TOP_SCREEN)
 		end
 	end
 	Controls.init()
@@ -188,7 +196,7 @@ while true do
 					if (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
 						sm_index = 2
 					elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
-						System.uninstallCIA(cia_table[p].access_id)
+						System.uninstallCIA(cia_table[p].access_id,cia_table[p].mediatype)
 						break
 					end
 				else
