@@ -128,9 +128,7 @@ while true do
 		else
 			Screen.debugPrint(0,45,"Platform: 3DS",menu_color,TOP_SCREEN)
 		end
-		if cia_table[p].mediatype == 0 then
-			Screen.debugPrint(0,60,"Location: Gamecard",Color.new(0,0,255),TOP_SCREEN)
-		elseif cia_table[p].mediatype == 1 then
+		if cia_table[p].mediatype == 1 then
 			Screen.debugPrint(0,60,"Location: SDMC",Color.new(0,255,0),TOP_SCREEN)
 		else
 			Screen.debugPrint(0,60,"Location: NAND",Color.new(255,0,0),TOP_SCREEN)
