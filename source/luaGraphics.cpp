@@ -52,6 +52,74 @@ void DrawPixel(u8* screen, int x,int y, u32 color){
 	screen[idx*3+2] = (color) >> 16;
 }
 
+int ConsoleOutput(Console* console){
+unsigned short* ptr;
+unsigned short glyphsize;
+int max_x;
+u8* buffer;
+if (console->screen == 0){
+max_x = 400;
+buffer = TopLFB;
+}else{
+max_x = 320;
+buffer = BottomFB;
+}
+int i, cx, cy;
+int x=0;
+int y=0;
+int res = 0;
+for (i = 0; console->text[i] != '\0'; i++)
+{
+if (y > 230) break;
+if (console->text[i] == 0x0A){
+x=0;
+y=y+15;
+res++;
+continue;
+}else if(console->text[i] == 0x0D){
+res++;
+continue;
+}
+if (console->text[i] < 0x21)
+{
+x += 6;
+res++;
+continue;
+}
+u16 ch = console->text[i];
+if (ch > 0x7E) ch = 0x7F;
+ptr = &font[(ch-0x20) << 4];
+glyphsize = ptr[0];
+if (!glyphsize)
+{
+x += 6;
+res++;
+continue;
+}
+x++;
+if (x >= max_x - 10){
+x=0;
+y=y+15;
+if (y > 230) break;
+}
+for (cy = 0; cy < 12; cy++)
+{
+unsigned short val = ptr[4+cy];
+for (cx = 0; cx < glyphsize; cx++)
+{
+if (val & (1 << cx))
+DrawPixel(buffer, x+cx, y+cy, 0xFFFFFF);
+}
+}
+x += glyphsize;
+x++;
+res++;
+}
+x = 0;
+y = 0;
+return res;
+}
+
 void RefreshScreen(){
 TopLFB = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
 if (CONFIG_3D_SLIDERSTATE != 0) TopRFB = gfxGetFramebuffer(GFX_TOP, GFX_RIGHT, NULL, NULL);

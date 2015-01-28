@@ -392,7 +392,7 @@ return (Result)cmdbuf[1];
 }
 //Finish AM support
 
-int MAX_RAM_ALLOCATION = 62914560;
+int MAX_RAM_ALLOCATION = 1048576;
 
 static int lua_installCia(lua_State *L){
 	int argc = lua_gettop(L);
@@ -408,6 +408,23 @@ static int lua_installCia(lua_State *L){
 	amInit();
 	AM_StartCiaInstall(mediatype_SDMC, &ciaHandle);
 	FSFILE_GetSize(fileHandle, &size);
+	Console* console = (Console*)malloc(sizeof(Console));
+	console->screen = 0;
+	if (size > 1024){
+		if (size > 1024 * 1024){
+			sprintf(console->text,"Importing...\n0 / %lli MBs",size / (1024*1024));
+		}else{
+			sprintf(console->text,"Importing...\n0 / %lli KBs",size / 1024);
+		}
+	}else{
+		sprintf(console->text,"Importing...\n0 / %llu Bytes",size);
+	}
+	gspWaitForVBlank();
+	RefreshScreen();
+	ClearScreen(0);
+	ConsoleOutput(console);
+	gfxFlushBuffers();
+	gfxSwapBuffers();
 	if (size < MAX_RAM_ALLOCATION){
 		char* cia_buffer = (char*)(malloc((size) * sizeof (char)));
 		FSFILE_Read(fileHandle, &bytes, 0x0, cia_buffer, size);
@@ -428,7 +445,14 @@ static int lua_installCia(lua_State *L){
 			FSFILE_Read(fileHandle, &bytes, i, cia_buffer, bytesToRead);
 			FSFILE_Write(ciaHandle, &bytes, i, cia_buffer, bytesToRead, 0x10001);
 			i = i + bytesToRead;
-			free(cia_buffer);
+			sprintf(console->text,"Importing...\n%lli / %lli MBs",i / (1024*1024), size / (1024*1024));
+			free(cia_buffer);	
+			gspWaitForVBlank();
+			RefreshScreen();
+			ClearScreen(0);
+			ConsoleOutput(console);
+			gfxFlushBuffers();
+			gfxSwapBuffers();
 		}
 	}
 	AM_FinishCiaInstall(mediatype_SDMC, &ciaHandle);
@@ -583,6 +607,27 @@ static int lua_ciainfo(lua_State *L){
 	svcCloseHandle(fileHandle);
 	return 1;
 }
+static int lua_freespace(lua_State *L) {
+	int argc = lua_gettop(L);
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	u32 freeBlocks;
+	u32 blockSize;
+	FSUSER_GetSdmcArchiveResource(NULL, NULL, &blockSize, NULL, &freeBlocks);
+	lua_pushnumber(L,freeBlocks*blockSize);
+	return 1;
+}
+
+static int lua_delfile(lua_State *L) {
+	int argc = lua_gettop(L);
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	const char *path = luaL_checkstring(L, 1);
+	FS_archive sdmcArchive = (FS_archive){0x9, (FS_path){PATH_EMPTY, 1, (u8*)""}};
+	FSUSER_OpenArchive(NULL, &sdmcArchive);
+	FS_path filePath=FS_makePath(PATH_CHAR, path);
+	FSUSER_DeleteFile(NULL,sdmcArchive,filePath);
+	FSUSER_CloseArchive(NULL, &sdmcArchive);
+	return 0;
+}
 
 //Register our System Functions
 static const luaL_Reg System_functions[] = {
@@ -593,7 +638,9 @@ static const luaL_Reg System_functions[] = {
   {"listDirectory",			lua_listdir},
   {"installCIA",			lua_installCia},
   {"listCIA",				lua_listCia},
+  {"deleteFile",			lua_delfile},
   {"uninstallCIA",			lua_uninstallCia},
+  {"getFreeSpace",			lua_freespace},
   {"extractCIA",			lua_ciainfo},
 // I/O Module and Dofile Patch
   {"openFile",				lua_openfile},

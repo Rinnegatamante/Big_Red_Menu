@@ -30,7 +30,12 @@
 #- Sean Barrett for stb_truetype ---------------------------------------------------------------------------------------#
 #- Special thanks to Aurelio for testing, bug-fixing and various help with codes and implementations -------------------#
 #-----------------------------------------------------------------------------------------------------------------------*/
+struct Console{
+int screen;
+char text[1500];
+};
 
+int ConsoleOutput(Console* console);
 extern u8* TopLFB;
 extern u8* TopRFB;
 extern u8* BottomFB;

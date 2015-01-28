@@ -18,6 +18,20 @@ function listDirectory(dir)
 	end
 	return ret_tab
 end
+function UpdateSpace()
+	free_space = System.getFreeSpace()
+	f = "Bytes"
+	f_free_space = free_space
+	if free_space > 1024 then
+		f_free_space = free_space / 1024
+		f = "KBs"
+		if f_free_space > 1024 then
+			f_free_space = f_free_space / 1024
+			f = "MBs"
+		end
+	end
+end
+UpdateSpace()
 files_table = listDirectory("/")
 master_index = 0
 p = 1
@@ -31,7 +45,7 @@ function GetCategory(c)
 	elseif c==1 then
 		return "System"
 	elseif c==2 then
-		return "DLC"
+		return "Demo"
 	elseif c==3 then
 		return "Patch"
 	elseif c==4 then
@@ -65,6 +79,7 @@ while true do
 	Screen.refresh()
 	Screen.clear(TOP_SCREEN)
 	Screen.clear(BOTTOM_SCREEN)
+	Screen.debugPrint(0,180,"Free Space: "..f_free_space.." "..f,menu_color,TOP_SCREEN)
 	if mode == "SDMC" then
 		for l, file in pairs(files_table) do
 			if (base_y > 226) then
@@ -95,6 +110,20 @@ while true do
 			end
 			Screen.debugPrint(0,0,"Title: "..cia_data.title,menu_color,TOP_SCREEN)
 			Screen.debugPrint(0,15,"Unique ID: 0x"..string.sub(string.format('%02X',cia_data.unique_id),1,-3),menu_color,TOP_SCREEN)
+			tmp = io.open(System.currentDirectory()..files_table[p].name,FREAD)
+			size = io.size(tmp)
+			f_size = size
+			f2 = "Bytes"
+			if size > 1024 then
+				f_size = size / 1024
+				f2 = "KBs"
+				if f_size > 1024 then
+					f_size = f_size / 1024
+					f2 = "MBs"
+				end
+			end
+			Screen.debugPrint(0,30,"Filesize: "..f_size.." "..f2,menu_color,TOP_SCREEN)
+			io.close(tmp)
 		end
 	else
 		for l, file in pairs(cia_table) do
@@ -148,35 +177,38 @@ while true do
 				p = 1
 				master_index = 0
 			else
-				while true do
-					Screen.waitVblankStart()
-					Screen.refresh()
-					Controls.init()
-					pad = Controls.read()
-					Screen.fillEmptyRect(60,260,50,82,selected_item,BOTTOM_SCREEN)
-					Screen.fillRect(61,259,51,81,menu_color,BOTTOM_SCREEN)
-					if (sm_index == 1) then
-						Screen.fillRect(61,259,51,66,selected_color,BOTTOM_SCREEN)
-						Screen.debugPrint(63,53,"Confirm",selected_item,BOTTOM_SCREEN)
-						Screen.debugPrint(63,68,"Cancel",Color.new(0,0,0),BOTTOM_SCREEN)
-						if (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
-							sm_index = 2
-						elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
-							System.installCIA(System.currentDirectory()..files_table[p].name)
-							break
+				if free_space - size > 0 then
+					while true do
+						Screen.waitVblankStart()
+						Screen.refresh()
+						Controls.init()
+						pad = Controls.read()
+						Screen.fillEmptyRect(60,260,50,82,selected_item,BOTTOM_SCREEN)
+						Screen.fillRect(61,259,51,81,menu_color,BOTTOM_SCREEN)
+						if (sm_index == 1) then
+							Screen.fillRect(61,259,51,66,selected_color,BOTTOM_SCREEN)
+							Screen.debugPrint(63,53,"Confirm",selected_item,BOTTOM_SCREEN)
+							Screen.debugPrint(63,68,"Cancel",Color.new(0,0,0),BOTTOM_SCREEN)
+							if (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
+								sm_index = 2
+							elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
+								System.installCIA(System.currentDirectory()..files_table[p].name)
+								UpdateSpace()
+								break
+							end
+						else
+							Screen.fillRect(61,259,66,81,selected_color,BOTTOM_SCREEN)
+							Screen.debugPrint(63,53,"Confirm",Color.new(0,0,0),BOTTOM_SCREEN)
+							Screen.debugPrint(63,68,"Cancel",selected_item,BOTTOM_SCREEN)
+							if (Controls.check(pad,KEY_DUP)) and not (Controls.check(oldpad,KEY_DUP)) then
+								sm_index = 1
+							elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
+								break
+							end
 						end
-					else
-						Screen.fillRect(61,259,66,81,selected_color,BOTTOM_SCREEN)
-						Screen.debugPrint(63,53,"Confirm",Color.new(0,0,0),BOTTOM_SCREEN)
-						Screen.debugPrint(63,68,"Cancel",selected_item,BOTTOM_SCREEN)
-						if (Controls.check(pad,KEY_DUP)) and not (Controls.check(oldpad,KEY_DUP)) then
-							sm_index = 1
-						elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
-							break
-						end
+						oldpad = pad
+						Screen.flip()
 					end
-					oldpad = pad
-					Screen.flip()
 				end
 			end
 		else
@@ -195,6 +227,7 @@ while true do
 						sm_index = 2
 					elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
 						System.uninstallCIA(cia_table[p].access_id,cia_table[p].mediatype)
+						UpdateSpace()
 						break
 					end
 				else
@@ -213,6 +246,56 @@ while true do
 			cia_table = System.listCIA()
 			if p > #cia_table then
 				p = p - 1
+			end
+		end
+	elseif (Controls.check(pad,KEY_Y) and not Controls.check(oldpad,KEY_Y)) then
+		oldpad = KEY_A
+		if (mode == "SDMC") then
+			sm_index = 1
+			if not (files_table[p].directory) and (free_space - size > 0) then
+				while true do
+					Screen.waitVblankStart()
+					Screen.refresh()
+					Controls.init()
+					pad = Controls.read()
+					Screen.fillEmptyRect(60,260,50,82,selected_item,BOTTOM_SCREEN)
+					Screen.fillRect(61,259,51,81,menu_color,BOTTOM_SCREEN)
+					if (sm_index == 1) then
+						Screen.fillRect(61,259,51,66,selected_color,BOTTOM_SCREEN)
+						Screen.debugPrint(63,53,"Confirm",selected_item,BOTTOM_SCREEN)
+						Screen.debugPrint(63,68,"Cancel",Color.new(0,0,0),BOTTOM_SCREEN)
+						if (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
+							sm_index = 2
+						elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
+							System.installCIA(System.currentDirectory()..files_table[p].name)
+							System.deleteFile(System.currentDirectory()..files_table[p].name)
+							UpdateSpace()
+							files_table = listDirectory(System.currentDirectory())
+							if System.currentDirectory() ~= "/" then
+								local extra = {}
+								extra.name = ".."
+								extra.size = 0
+								extra.directory = true
+								table.insert(files_table,extra)
+							end
+							if (p > #files_table) then
+								p = p - 1
+							end
+							break
+						end
+					else
+						Screen.fillRect(61,259,66,81,selected_color,BOTTOM_SCREEN)
+						Screen.debugPrint(63,53,"Confirm",Color.new(0,0,0),BOTTOM_SCREEN)
+						Screen.debugPrint(63,68,"Cancel",selected_item,BOTTOM_SCREEN)
+						if (Controls.check(pad,KEY_DUP)) and not (Controls.check(oldpad,KEY_DUP)) then
+							sm_index = 1
+						elseif (Controls.check(pad,KEY_A)) and not (Controls.check(oldpad,KEY_A)) then
+							break
+						end
+					end
+					oldpad = pad
+					Screen.flip()
+				end
 			end
 		end
 	elseif (Controls.check(pad,KEY_DUP)) and not (Controls.check(oldpad,KEY_DUP)) then
