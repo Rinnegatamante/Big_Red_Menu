@@ -8,15 +8,27 @@ function CropPrint(x, y, text, color, screen)
 		Screen.debugPrint(x, y, text, color, screen)
 	end
 end
+function TableConcat(t1,t2)
+    for i=1,#t2 do
+        t1[#t1+1] = t2[i]
+    end
+    return t1
+end
 function listDirectory(dir)
-	tab = System.listDirectory(dir)
-	ret_tab = {}
-	for i, file in pairs(tab) do
-		if (file.directory) or (string.sub(file.name,-4) == ".cia") or (string.sub(file.name,-4) == ".CIA") then
-			table.insert(ret_tab, file)
+	dir = System.listDirectory(dir)
+	folders_table = {}
+	files_table = {}
+	for i,file in pairs(dir) do
+		if file.directory then
+			table.insert(folders_table,file)
+		elseif (string.sub(file.name,-4) == ".cia") or (string.sub(file.name,-4) == ".CIA") then
+			table.insert(files_table,file)
 		end
 	end
-	return ret_tab
+	table.sort(files_table, function (a, b) return (a.name:lower() < b.name:lower() ) end)
+	table.sort(folders_table, function (a, b) return (a.name:lower() < b.name:lower() ) end)
+	return_table = TableConcat(folders_table,files_table)
+	return return_table
 end
 function UpdateSpace()
 	free_space = System.getFreeSpace()
@@ -297,11 +309,35 @@ while true do
 					Screen.flip()
 				end
 			end
+		else
+			System.launchCIA(cia_table[p].access_id,cia_table[p].mediatype)
 		end
 	elseif (Controls.check(pad,KEY_DUP)) and not (Controls.check(oldpad,KEY_DUP)) then
 		not_extracted = true
 		p = p - 1
 		if (p >= 16) then
+			master_index = p - 15
+		end
+	elseif (Controls.check(pad,KEY_DLEFT)) and not (Controls.check(oldpad,KEY_DLEFT)) then
+		not_extracted = true
+		p = p - 16
+		if p < 1 then
+			p = 1
+		end
+		if (p >= 16) then
+			master_index = p - 15
+		else
+			master_index = 0
+		end
+	elseif (Controls.check(pad,KEY_DRIGHT)) and not (Controls.check(oldpad,KEY_DRIGHT)) then
+		not_extracted = true
+		p = p + 16
+		if ((p > #files_table) and (mode == "SDMC")) then
+			p = #files_table
+		elseif ((p > #cia_table) and (mode == "CIA")) then
+			p = #cia_table
+		end
+		if (p >= 17) then
 			master_index = p - 15
 		end
 	elseif (Controls.check(pad,KEY_DDOWN)) and not (Controls.check(oldpad,KEY_DDOWN)) then
